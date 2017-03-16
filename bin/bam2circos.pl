@@ -36,11 +36,12 @@ bam2circos.pl [optional] -k FILE -b FILE
 =item B<-k|karyotype>
 
     The karyotype file needs to conform to the Circos karyotype file format:
-    http://circos.ca/tutorials/lessons/ideograms/karyotypes/.  For most
-    viruses, the file will contain one row to define the full length of the
-    viral genome.  You can add rows to define segmented viruses.  The 3rd
-    column (ID) must match the RNAME column (reference column) of the BAM
-    file
+    http://circos.ca/tutorials/lessons/ideograms/karyotypes/.  CAREFUL:
+    There must only be 1 space between the fields.  For most viruses, the
+    file will contain one row to define the full length of the viral genome. 
+    You can add rows to define segmented viruses.  The 3rd column (ID) must
+    match the RNAME column (reference column) of the BAM file.  I found that
+    a | (vertical bar) is not allowed in the ID.
 
     Example: Bunyaviridae have 3 segments
     chr - NC_014397 L 0 6404 chr1
@@ -153,7 +154,7 @@ sub initialize {
   my $depthtemp = "temp.depth.txt";
   $depth //= $depthtemp;
   if ($depth eq $depthtemp) {
-    create_depth_file ($depthtemp, $bam);
+    create_depth_file ($depthtemp, $bam, $karyotype);
   }
 
   my $slidingpidtemp = "temp.slidingpid.txt";
@@ -273,11 +274,30 @@ sub create_annot_file {
 
 
 sub create_depth_file {
-  my ($depthfile, $bam) = @_;
+  my ($depthfile, $bam, $karyotype) = @_;
+
+  my %vid;
+  open (my $kin, "<", $karyotype) or die ("Can't open $karyotype: $!\n");
+  while (my $line = <$kin>) {
+    my (undef, undef, $id) = split (/ /, $line);
+    $vid{$id}++;
+  }
+  close $kin;
+
   my $awk = q{awk -F "\t" '{print $1,$2-1,$2,$3}'};
-  my $command = join("", "samtools depth $bam | ", $awk, " > $depthfile");
+  my $command = join("", "samtools depth $bam | ", $awk);
   print "Running samtools depth: $command\n";
-  system($command);
+  my @output = `$command`;
+
+  my $text = "";
+  foreach (@output) {
+    my ($id) = split;
+    $text .= $_ if (exists $vid{$id});
+  }
+
+  open (my $tout, ">", $depthfile) or die ("Can't open $depthfile for writing: $!\n");
+  print $tout $text;
+  close $tout;
 }
 
 
