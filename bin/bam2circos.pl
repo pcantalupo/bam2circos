@@ -478,12 +478,13 @@ sub depth_conf {
 
   my $text = <<HEREDOC;
 ### COVERAGE ###
-type = histogram
+type = line
 file = $depthfile
 r1 = 0.80r
 r0 = 0.70r
 thickness = 0p
-fill_color=red,green,blue,yellow # vdgrey
+fill_color=red
+max_gap=1b
 HEREDOC
 
   writefile ($text, $conffile);
